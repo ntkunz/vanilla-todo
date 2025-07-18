@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Hocus Pokus</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+      <section class="header">
+        <h1>Focus Hocus Pokus</h1>
+        <input type="button" id="dark-mode-toggle" value="Toggle Dark Mode" onclick="toggleDarkMode()" />
+      </section>
+
+      <form id="task-form">
+        <input type="text" id="task-title" placeholder="Task title" required>
+        <select id="task-priority">
+          <option>High</option>
+          <option selected>Medium</option>
+          <option>Low</option>
+        </select>
+        <input type="date" id="task-date-due" required>
+        <input type="text" id="task-est-time" placeholder="Est. time (e.g. 1h)">
+        <input type="text" id="task-info" placeholder="Additional info">
+        <button type="submit">Add Task</button>
+      </form>
+
+      <ul id="task-list"></ul>
+    </div>
+  <script src="app.js"></script>
+</body>
+</html>

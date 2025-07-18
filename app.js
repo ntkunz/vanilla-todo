@@ -1,0 +1,218 @@
+let db;
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('taskTrackerDB', 1);
+
+    request.onupgradeneeded = (event) => {
+      db = event.target.result;
+      const taskStore = db.createObjectStore('tasks', { keyPath: 'id', autoIncrement: true });
+      taskStore.createIndex('by_dueDate', 'dateDue', { unique: false });
+      taskStore.createIndex('by_priority', 'priority', { unique: false });
+    };
+
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      resolve();
+    };
+
+    request.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+};
+
+
+const TaskDB = {
+  addTask(task) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('tasks', 'readwrite');
+      const store = tx.objectStore('tasks');
+      const request = store.add(task);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  getAllTasks() {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('tasks', 'readonly');
+      const store = tx.objectStore('tasks');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  updateTask(task) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('tasks', 'readwrite');
+      const store = tx.objectStore('tasks');
+      const request = store.put(task);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  deleteTask(id) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('tasks', 'readwrite');
+      const store = tx.objectStore('tasks');
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  },
+};
+
+// Render Tasks
+const renderTasks = () => {
+  TaskDB.getAllTasks().then(tasks => {
+    const taskList = document.getElementById('task-list');
+    taskList.innerHTML = '';
+
+    tasks.forEach(task => {
+  const li = document.createElement('li');
+  li.classList.add('task-item');
+  
+  // Adjust transparency and text decoration if done
+  if (task.done) {
+    li.style.opacity = '0.5';
+  }
+
+  const header = document.createElement('div');
+  header.classList.add('task-header');
+  header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}`;
+
+  const drawer = document.createElement('div');
+  drawer.classList.add('task-drawer');
+
+  const infoDiv = document.createElement('div');
+  infoDiv.textContent = task.info || "No additional info.";
+
+  // Done button
+const doneBtn = document.createElement('button');
+doneBtn.textContent = task.done ? 'Mark as Not Done' : 'Mark as Done';
+
+doneBtn.addEventListener('click', () => {
+  task.done = !task.done;
+  TaskDB.updateTask(task);
+
+  // Update UI without re-rendering the entire task list
+  li.style.opacity = task.done ? '0.5' : '1';
+  header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}`;
+  doneBtn.textContent = task.done ? 'Mark as Not Done' : 'Mark as Done';
+});
+
+  // Timer Display and buttons (existing logic)
+  const timerDisplay = document.createElement('div');
+  timerDisplay.classList.add('timer-display');
+  timerDisplay.textContent = `Task Time: ${task.actualTime || '0h 0m 0s'}`;
+
+  const startBtn = document.createElement('button');
+  startBtn.textContent = 'Start Timer';
+  const endBtn = document.createElement('button');
+  endBtn.textContent = 'End Timer';
+
+  let timerInterval;
+  let startTime;
+
+  startBtn.addEventListener('click', () => {
+    startTime = Date.now();
+    startBtn.disabled = true;
+    endBtn.disabled = false;
+    timerDisplay.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--tertiary-color');
+    timerInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      timerDisplay.textContent = `Task Time: ${formatTime(elapsed + parseActualTime(task.actualTime))}`;
+    }, 1000);
+  });
+
+  endBtn.addEventListener('click', () => {
+    if (startTime) {
+      const elapsed = Date.now() - startTime;
+      clearInterval(timerInterval);
+      task.actualTime = formatTime(elapsed + parseActualTime(task.actualTime));
+      timerDisplay.textContent = `Task Time: ${task.actualTime}`;
+      timerDisplay.style.backgroundColor = '';
+      TaskDB.updateTask(task);
+      startBtn.disabled = false;
+      endBtn.disabled = true;
+    }
+  });
+
+  endBtn.disabled = true;
+
+  drawer.appendChild(infoDiv);
+  drawer.appendChild(timerDisplay);
+  drawer.appendChild(startBtn);
+  drawer.appendChild(endBtn);
+  drawer.appendChild(doneBtn); // Done button added here
+
+  header.addEventListener('click', () => {
+    drawer.classList.toggle('open');
+  });
+
+  li.appendChild(header);
+  li.appendChild(drawer);
+  taskList.appendChild(li);
+});
+
+  });
+};
+
+// Helper: Convert milliseconds to hh:mm:ss format
+const formatTime = (milliseconds) => {
+  let totalSeconds = Math.floor(milliseconds / 1000);
+  let hours = Math.floor(totalSeconds / 3600);
+  let minutes = Math.floor((totalSeconds % 3600) / 60);
+  let seconds = totalSeconds % 60;
+  return `${hours}h ${minutes}m ${seconds}s`;
+};
+
+// Helper: Parse the actualTime string back into milliseconds
+const parseActualTime = (timeStr) => {
+  if (!timeStr) return 0;
+  const matches = timeStr.match(/(\d+)h\s*(\d+)m\s*(\d+)s/);
+  if (!matches) return 0; // if unexpected format, return 0
+  const [_, hours, minutes, seconds] = matches.map(Number);
+  return (hours * 3600 + minutes * 60 + seconds) * 1000;
+};
+
+// Handle form submission
+document.getElementById('task-form').addEventListener('submit', e => {
+  e.preventDefault();
+
+const newTask = {
+  title: document.getElementById('task-title').value,
+  priority: document.getElementById('task-priority').value,
+  dateCreated: new Date().toISOString(),
+  dateDue: document.getElementById('task-date-due').value,
+  estTime: document.getElementById('task-est-time').value,
+  actualTime: "0h 0m 0s",
+  info: document.getElementById('task-info').value,
+  done: false,  // Initialize done status
+};
+  TaskDB.addTask(newTask).then(() => {
+    renderTasks(); // Refresh list
+    document.getElementById('task-form').reset();
+  });
+});
+
+// Initialize DB and render tasks
+initDB().then(() => {
+  renderTasks();
+});
+
+
+
+// Darkmode toggle functionality
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+darkModeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('dark-mode');
+  localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+});
+// Load dark mode preference from localStorage
+if (localStorage.getItem('darkMode') === 'true') {
+  document.body.classList.add('dark-mode');
+}
