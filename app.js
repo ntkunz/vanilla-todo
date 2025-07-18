@@ -82,7 +82,12 @@ const renderTasks = () => {
 
   const header = document.createElement('div');
   header.classList.add('task-header');
-  header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}`;
+  // Display spent time without seconds
+  const spentMs = parseActualTime(task.actualTime);
+  const spentH = Math.floor(spentMs / 3600000);
+  const spentM = Math.floor((spentMs % 3600000) / 60000);
+  const spentStr = `${spentH}h ${spentM}m`;
+  header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}${task.estTime ? ' - Est: ' + task.estTime : ''} - Spent: ${spentStr}`;
 
   const drawer = document.createElement('div');
   drawer.classList.add('task-drawer');
@@ -100,7 +105,11 @@ doneBtn.addEventListener('click', () => {
 
   // Update UI without re-rendering the entire task list
   li.style.opacity = task.done ? '0.5' : '1';
-  header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}`;
+  const spentMs2 = parseActualTime(task.actualTime);
+  const spentH2 = Math.floor(spentMs2 / 3600000);
+  const spentM2 = Math.floor((spentMs2 % 3600000) / 60000);
+  const spentStr2 = `${spentH2}h ${spentM2}m`;
+  header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}${task.estTime ? ' - Est: ' + task.estTime : ''} - Spent: ${spentStr2}`;
   doneBtn.textContent = task.done ? 'Mark as Not Done' : 'Mark as Done';
 });
 
@@ -180,19 +189,28 @@ const parseActualTime = (timeStr) => {
 };
 
 // Handle form submission
+// Handle form submission
 document.getElementById('task-form').addEventListener('submit', e => {
   e.preventDefault();
 
-const newTask = {
-  title: document.getElementById('task-title').value,
-  priority: document.getElementById('task-priority').value,
-  dateCreated: new Date().toISOString(),
-  dateDue: document.getElementById('task-date-due').value,
-  estTime: document.getElementById('task-est-time').value,
-  actualTime: "0h 0m 0s",
-  info: document.getElementById('task-info').value,
-  done: false,  // Initialize done status
-};
+  // Parse estimated time (HH:MM) into hours/minutes string
+  const rawEst = document.getElementById('task-est-time').value;
+  let estTime = '';
+  if (rawEst) {
+    const [eh, em] = rawEst.split(':').map(Number);
+    estTime = `${eh}h ${em}m`;
+  }
+
+  const newTask = {
+    title: document.getElementById('task-title').value,
+    priority: document.getElementById('task-priority').value,
+    dateCreated: new Date().toISOString(),
+    dateDue: document.getElementById('task-date-due').value,
+    estTime,
+    actualTime: "0h 0m 0s",
+    info: document.getElementById('task-info').value,
+    done: false,
+  };
   TaskDB.addTask(newTask).then(() => {
     renderTasks(); // Refresh list
     document.getElementById('task-form').reset();
