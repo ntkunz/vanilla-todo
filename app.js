@@ -84,8 +84,10 @@ const renderTasks = () => {
   header.classList.add('task-header');
   // Display spent time without seconds
   const spentMs = parseActualTime(task.actualTime);
-  const spentH = Math.floor(spentMs / 3600000);
-  const spentM = Math.floor((spentMs % 3600000) / 60000);
+  // Round up any seconds to the next whole minute for display
+  const totalMinutes = Math.ceil(spentMs / 60000);
+  const spentH = Math.floor(totalMinutes / 60);
+  const spentM = totalMinutes % 60;
   const spentStr = `${spentH}h ${spentM}m`;
   header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}${task.estTime ? ' - Est: ' + task.estTime : ''} - Spent: ${spentStr}`;
 
@@ -106,8 +108,10 @@ doneBtn.addEventListener('click', () => {
   // Update UI without re-rendering the entire task list
   li.style.opacity = task.done ? '0.5' : '1';
   const spentMs2 = parseActualTime(task.actualTime);
-  const spentH2 = Math.floor(spentMs2 / 3600000);
-  const spentM2 = Math.floor((spentMs2 % 3600000) / 60000);
+  // Round up seconds to the next minute for spent display
+  const totalMinutes2 = Math.ceil(spentMs2 / 60000);
+  const spentH2 = Math.floor(totalMinutes2 / 60);
+  const spentM2 = totalMinutes2 % 60;
   const spentStr2 = `${spentH2}h ${spentM2}m`;
   header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}${task.estTime ? ' - Est: ' + task.estTime : ''} - Spent: ${spentStr2}`;
   // restore header timer toggle button after replacing textContent
@@ -137,6 +141,22 @@ doneBtn.addEventListener('click', () => {
     }
   });
 
+  // Helper: recalc & display rounded-up spent time in the header
+  function updateHeaderSpent() {
+    // Compute total spent: stored actualTime plus any running elapsed
+    let ms = parseActualTime(task.actualTime);
+    if (startTime) {
+      ms += Date.now() - startTime;
+    }
+    const mins = Math.ceil(ms / 60000);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}`
+      + `${task.estTime ? ' - Est: ' + task.estTime : ''}`
+      + ` - Spent: ${h}h ${m}m`;
+    header.appendChild(headerTimerBtn);
+  }
+
   let timerInterval;
   let startTime;
 
@@ -157,6 +177,8 @@ doneBtn.addEventListener('click', () => {
     if (startTime) {
       const elapsed = Date.now() - startTime;
       clearInterval(timerInterval);
+      // stop live accumulation so header uses only stored time
+      startTime = null;
       task.actualTime = formatTime(elapsed + parseActualTime(task.actualTime));
       timerDisplay.textContent = `Task Time: ${task.actualTime}`;
       TaskDB.updateTask(task);
@@ -165,6 +187,8 @@ doneBtn.addEventListener('click', () => {
       // update header button to start state
       headerTimerBtn.classList.replace('stop', 'start');
       headerTimerBtn.textContent = '▶️';
+      // update spent total in header on stop
+      updateHeaderSpent();
     }
   });
 
@@ -218,10 +242,11 @@ doneBtn.addEventListener('click', () => {
       task.actualTime = val;
       TaskDB.updateTask(task).then(() => {
         timerDisplay.textContent = `Task Time: ${task.actualTime}`;
+        updateHeaderSpent();
         drawer.removeChild(editContainer);
-    timerDisplay.style.display = '';
-    startBtn.style.display = '';
-    endBtn.style.display = '';
+        timerDisplay.style.display = '';
+        startBtn.style.display = '';
+        endBtn.style.display = '';
         editTimerBtn.style.display = '';
         doneBtn.style.display = '';
       });
