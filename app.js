@@ -193,11 +193,13 @@ const parseActualTime = (timeStr) => {
 document.getElementById('task-form').addEventListener('submit', e => {
   e.preventDefault();
 
-  // Parse estimated time (HH:MM) into hours/minutes string
+  // Parse estimated time (minutes) into hours/minutes string
   const rawEst = document.getElementById('task-est-time').value;
   let estTime = '';
   if (rawEst) {
-    const [eh, em] = rawEst.split(':').map(Number);
+    const totalMins = parseInt(rawEst, 10);
+    const eh = Math.floor(totalMins / 60);
+    const em = totalMins % 60;
     estTime = `${eh}h ${em}m`;
   }
 
