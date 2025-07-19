@@ -110,6 +110,8 @@ doneBtn.addEventListener('click', () => {
   const spentM2 = Math.floor((spentMs2 % 3600000) / 60000);
   const spentStr2 = `${spentH2}h ${spentM2}m`;
   header.textContent = `${task.done ? '❌ ' : ''}${task.title} [${task.priority}] - Due: ${task.dateDue}${task.estTime ? ' - Est: ' + task.estTime : ''} - Spent: ${spentStr2}`;
+  // restore header timer toggle button after replacing textContent
+  header.appendChild(headerTimerBtn);
   doneBtn.textContent = task.done ? 'Mark as Not Done' : 'Mark as Done';
 });
 
@@ -122,6 +124,18 @@ doneBtn.addEventListener('click', () => {
   startBtn.textContent = 'Start Timer';
   const endBtn = document.createElement('button');
   endBtn.textContent = 'End Timer';
+  // Header timer toggle button (start/stop)
+  const headerTimerBtn = document.createElement('button');
+  headerTimerBtn.classList.add('header-timer-btn', 'start');
+  headerTimerBtn.textContent = '▶️';
+  headerTimerBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (startBtn.disabled) {
+      endBtn.click();
+    } else {
+      startBtn.click();
+    }
+  });
 
   let timerInterval;
   let startTime;
@@ -130,11 +144,13 @@ doneBtn.addEventListener('click', () => {
     startTime = Date.now();
     startBtn.disabled = true;
     endBtn.disabled = false;
-    timerDisplay.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--tertiary-color');
     timerInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       timerDisplay.textContent = `Task Time: ${formatTime(elapsed + parseActualTime(task.actualTime))}`;
     }, 1000);
+    // update header button to stop state
+    headerTimerBtn.classList.replace('start', 'stop');
+    headerTimerBtn.textContent = '⏹️';
   });
 
   endBtn.addEventListener('click', () => {
@@ -143,10 +159,12 @@ doneBtn.addEventListener('click', () => {
       clearInterval(timerInterval);
       task.actualTime = formatTime(elapsed + parseActualTime(task.actualTime));
       timerDisplay.textContent = `Task Time: ${task.actualTime}`;
-      timerDisplay.style.backgroundColor = '';
       TaskDB.updateTask(task);
       startBtn.disabled = false;
       endBtn.disabled = true;
+      // update header button to start state
+      headerTimerBtn.classList.replace('stop', 'start');
+      headerTimerBtn.textContent = '▶️';
     }
   });
 
@@ -156,10 +174,68 @@ doneBtn.addEventListener('click', () => {
   drawer.appendChild(timerDisplay);
   drawer.appendChild(startBtn);
   drawer.appendChild(endBtn);
-  drawer.appendChild(doneBtn); // Done button added here
+  // Edit timer button to adjust recorded time manually
+  const editTimerBtn = document.createElement('button');
+  editTimerBtn.textContent = 'Edit Timer';
+  drawer.appendChild(editTimerBtn);
+  drawer.appendChild(doneBtn);
 
+  // attach header timer button before toggling drawer on click
+  header.appendChild(headerTimerBtn);
   header.addEventListener('click', () => {
     drawer.classList.toggle('open');
+  });
+
+  // Edit-Mode: adjust actualTime text with save/cancel
+  editTimerBtn.addEventListener('click', () => {
+    timerDisplay.style.display = 'none';
+    startBtn.style.display = 'none';
+    endBtn.style.display = 'none';
+    editTimerBtn.style.display = 'none';
+    doneBtn.style.display = 'none';
+
+    const editContainer = document.createElement('div');
+    editContainer.classList.add('timer-edit-container');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = task.actualTime;
+    editContainer.appendChild(input);
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    editContainer.appendChild(saveBtn);
+    editContainer.appendChild(cancelBtn);
+    drawer.appendChild(editContainer);
+
+    // Save new timer value
+    saveBtn.addEventListener('click', () => {
+      const val = input.value.trim();
+      if (!/^\d+h\s+\d+m\s+\d+s$/.test(val)) {
+        alert('Invalid format. Use "Xh Ym Zs"');
+        return;
+      }
+      task.actualTime = val;
+      TaskDB.updateTask(task).then(() => {
+        timerDisplay.textContent = `Task Time: ${task.actualTime}`;
+        drawer.removeChild(editContainer);
+    timerDisplay.style.display = '';
+    startBtn.style.display = '';
+    endBtn.style.display = '';
+        editTimerBtn.style.display = '';
+        doneBtn.style.display = '';
+      });
+    });
+
+    // Cancel edit
+    cancelBtn.addEventListener('click', () => {
+      drawer.removeChild(editContainer);
+      timerDisplay.style.display = '';
+      startBtn.style.display = '';
+      endBtn.style.display = '';
+      editTimerBtn.style.display = '';
+      doneBtn.style.display = '';
+    });
   });
 
   li.appendChild(header);

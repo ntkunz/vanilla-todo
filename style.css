@@ -107,3 +107,32 @@ form button {
   padding: 4px 18px;
   cursor: pointer;
 }
+
+/* Inline timer-edit layout under the timer display */
+.timer-edit-container {
+  margin-top: 8px;
+}
+.timer-edit-container input {
+  width: 8em;
+  margin-right: 8px;
+  padding: 4px;
+}
+.timer-edit-container button {
+  margin-right: 4px;
+  padding: 4px 12px;
+}
+
+/* Header timer start/stop button styles */
+.header-timer-btn {
+  background: none;
+  border: 2px solid black;
+  font-size: 1.2em;
+  cursor: pointer;
+  margin: 0 8px;
+}
+.header-timer-btn.start {
+  background-color: #4cff4c;
+}
+.header-timer-btn.stop {
+  background-color: red;
+}
